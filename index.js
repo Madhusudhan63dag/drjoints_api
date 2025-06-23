@@ -349,20 +349,50 @@ app.post("/verify-youtube-subscription", async (req, res) => {
 
 // Email Sending Route
 app.post("/send-email", async (req, res) => {
-  const { to, subject, message } = req.body;
+  const { to, subject, message, name, email, phone, domain, productName } = req.body;
+
+  // For contact form submissions, send to customer care email
+  const recipientEmail = to || "customer63care@gmail.com";
+  
+  // Determine the source domain/product
+  const sourceIdentifier = domain || productName || 'Unknown Source';
+  
+  // Format the email content for contact form
+  let emailContent = message;
+  if (name || email || phone) {
+    emailContent = `
+Contact Form Submission from: ${sourceIdentifier}
+
+Name: ${name || 'Not provided'}
+Email: ${email || 'Not provided'}
+Phone: ${phone || 'Not provided'}
+Source Domain/Product: ${sourceIdentifier}
+
+Message:
+${message}
+    `;
+  }
+
+  // Add domain/product info to subject if not already present
+  const emailSubject = subject && subject.includes(sourceIdentifier) 
+    ? subject 
+    : `${subject || 'Contact Form Submission'} - ${sourceIdentifier}`;
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
-    to,
-    subject,
-    text: message,
-  };
-
+    to: recipientEmail,
+    subject: emailSubject,
+    text: emailContent,
+    // Add reply-to if customer email is provided
+    ...(email && { replyTo: email })
+  }; 
+ 
   try {
     await transporter.sendMail(mailOptions);
     res.status(200).json({ success: true, message: "Email sent successfully!" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Email sending failed!", error });
+    console.error("Error sending email:", error);
+    res.status(500).json({ success: false, message: "Email sending failed!", error: error.message });
   }
 });
 
@@ -611,12 +641,14 @@ app.post("/send-abandoned-order-email", async (req, res) => {
         <strong>Quantity:</strong> ${orderDetails.quantity || '1'}</p>`
       }
       
-      <p><strong>Total Amount:</strong> ${orderDetails.currency || '₹'} ${orderDetails.totalAmount}</p>
+      <p><strong>Total Amount:</strong> ${orderDetails.currency || '₹'} ${orderDetails.totalAmount}<br>
+      <strong>Payment Method:</strong> ${orderDetails.paymentMethod}<br>
+      <strong>Payment ID:</strong> ${orderDetails.paymentId || 'N/A'}</p>
       
       <h3>Customer Details:</h3>
       <p>
         <strong>Name:</strong> ${customerDetails.firstName} ${customerDetails.lastName}<br>
-        <strong>Email:</strong> ${customerDetails.email}<br>
+        <strong>Email:</strong> ${customerEmail}<br>
         <strong>Phone:</strong> ${customerDetails.phone || 'Not provided'}
       </p>
       
@@ -1301,6 +1333,7 @@ app.get("/server-metrics", (req, res) => {
       },
       memory: {
         rss: `${Math.round(memoryUsage.rss / 1024 / 1024)} MB`, // Resident Set Size
+
         heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)} MB`, // Total heap size
         heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB`, // Used heap size
         external: `${Math.round(memoryUsage.external / 1024 / 1024)} MB`, // External memory
@@ -1309,9 +1342,6 @@ app.get("/server-metrics", (req, res) => {
     });
   }, 100); // 100ms delay to measure CPU usage
 });
-
-
-
 
 
 // Start Server
