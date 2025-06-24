@@ -352,7 +352,7 @@ app.post("/send-email", async (req, res) => {
   const { to, subject, message, name, email, phone, domain, productName } = req.body;
 
   // For contact form submissions, send to customer care email
-  const recipientEmail = to || "customer63care@gmail.com";
+  const recipientEmail = to || "customercareproductcenter@gmail.com";
   
   // Determine the source domain/product
   const sourceIdentifier = domain || productName || 'Unknown Source';
